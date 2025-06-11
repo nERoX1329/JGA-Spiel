@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JGA Trinkspiel</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            touch-action: none; /* Prevents scrolling on mobile while swiping */
+        }
+        
+        /* Card styles */
+        .card-stack {
+            perspective: 1000px;
+            position: relative;
+            width: 90vw;
+            height: 75vh;
+            max-width: 400px;
+            max-height: 600px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            background-color: white;
+            border-radius: 1.5rem; /* 24px */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            cursor: grab;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            will-change: transform;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem; /* 32px */
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+        
+        /* Give depth to the stacked cards */
+        .card:nth-child(2) {
+            transform: translateY(10px) scale(0.98);
+            z-index: -1;
+        }
+        .card:nth-child(3) {
+            transform: translateY(20px) scale(0.96);
+            z-index: -2;
+        }
+        .card:nth-child(n+4) {
+             display: none;
+        }
+
+        /* Status overlay that appears during swipe */
+        .status-indicator {
+            position: absolute;
+            top: 50px;
+            font-weight: 900;
+            font-size: 2.25rem; /* 36px */
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            pointer-events: none; /* Makes sure it doesn't interfere with dragging */
+        }
+
+        .status-indicator.like {
+            color: #10B981; /* Emerald 500 */
+            right: 40px;
+            transform: rotate(15deg);
+        }
+
+        .status-indicator.nope {
+            color: #EF4444; /* Red 500 */
+            left: 40px;
+            transform: rotate(-15deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center h-screen w-screen">
+
+    <!-- Main Game Container -->
+    <div id="game-container" class="flex flex-col items-center justify-center w-full h-full">
+        <h1 class="text-4xl font-black mb-2 text-gray-200">JGA Challenge</h1>
+        <p id="progress-indicator" class="text-xl font-bold mb-8 text-emerald-400">1 / 5</p>
+
+        <div id="card-stack" class="card-stack">
+            <!-- Cards will be dynamically inserted here by JavaScript -->
+        </div>
+
+        <div class="mt-8 text-center text-gray-400 px-4">
+            <p>Wische nach links für <span class="text-red-500 font-bold">SHOTS</span>, nach rechts für <span class="text-emerald-500 font-bold">BESTANDEN</span>.</p>
+        </div>
+    </div>
+
+    <!-- Final Screen with QR Code -->
+    <div id="final-screen" class="hidden flex-col items-center justify-center text-center p-8">
+        <h2 class="text-5xl font-black text-emerald-400 mb-4">GESCHAFFT!</h2>
+        <p class="text-xl text-gray-200 mb-8">Starke Leistung! Hier ist der Ablaufplan für den Rest des Tages.</p>
+        <div class="bg-white p-4 rounded-xl shadow-lg">
+            <img id="qr-code" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=HierKoennteDeinLinkStehen" alt="QR Code zum Ablaufplan"
+                 onerror="this.onerror=null; this.src='https://placehold.co/250x250/ffffff/000000?text=QR+Code+fehlt';">
+        </div>
+         <button onclick="location.reload()" class="mt-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105">
+            Nochmal spielen
+        </button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const tasks = [
+            {
+                title: "Aufgabe 1: Der Eherat",
+                description: "Finde eine Person Ü50 oder ein altes Ehepaar, setze dich dazu und rede mindestens 3 Minuten darüber, wie eine erfolgreiche Ehe aussieht."
+            },
+            {
+                title: "Aufgabe 2: Bundesliga-Duell",
+                description: "Jetzt wird es spannend! Du zählst jetzt abwechselnd mit dem Trauzeugen die Bundesligisten auf. Wer zuerst nicht mehr weiter weiß, trinkt 3 Shots. Los geht’s!"
+            },
+            {
+                title: "Aufgabe 3: Clash of Clans",
+                description: "Öffne Clash of Clans und nimm die Herausforderung im Chat an. 3 Sterne: Alle anderen trinken 2 Shots. 2 Sterne: Du trinkst 2 Shots. 0-1 Stern: Du trinkst 3 Shots. Gutes Clshen!"
+            },
+            {
+                title: "Aufgabe 4: Die Durchsage",
+                description: "Du stehst auf und fragst einmal gut verständlich, sodass es im ganzen Raum zu hören ist: 'Entschuldigung, hat hier jemand den Bräutigam gesehen?'. Bei Nichterfüllung: 2 Shots."
+            },
+            {
+                title: "Aufgabe 5: Das große Finale",
+                description: "Dies ist die fünfte und letzte Aufgabe. Dein Trauzeuge wird sie dir jetzt persönlich mitteilen. Viel Erfolg!"
+            }
+        ];
+
+        // --- DOM ELEMENTS ---
+        const cardStack = document.getElementById('card-stack');
+        const progressIndicator = document.getElementById('progress-indicator');
+        const gameContainer = document.getElementById('game-container');
+        const finalScreen = document.getElementById('final-screen');
+        const qrCodeImage = document.getElementById('qr-code');
+        
+        // --- STATE ---
+        let currentIndex = 0;
+        let allCards = [];
+
+        // --- FUNCTIONS ---
+
+        /**
+         * Creates and appends all task cards to the DOM.
+         */
+        function createCards() {
+            tasks.slice().reverse().forEach((task, index) => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.innerHTML = `
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">${task.title}</h3>
+                        <p class="text-gray-600 leading-relaxed">${task.description}</p>
+                    </div>
+                    <div class="w-full h-12 flex justify-between items-center px-4 absolute top-0 left-0">
+                        <div class="status-indicator nope">SHOTS!</div>
+                        <div class="status-indicator like">TOP!</div>
+                    </div>
+                `;
+                cardStack.appendChild(card);
+            });
+            allCards = document.querySelectorAll('.card');
+            initCard(allCards[0]);
+        }
+        
+        /**
+         * Initializes event listeners for the top card.
+         * @param {HTMLElement} card The card element to make interactive.
+         */
+        function initCard(card) {
+            if (!card) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+
+            const nopeIndicator = card.querySelector('.status-indicator.nope');
+            const likeIndicator = card.querySelector('.status-indicator.like');
+
+            function onPointerDown(e) {
+                isDragging = true;
+                startX = e.pageX ?? e.touches[0].pageX;
+                startY = e.pageY ?? e.touches[0].pageY;
+                card.style.transition = 'none'; // Disable transition for smooth dragging
+            }
+
+            function onPointerMove(e) {
+                if (!isDragging) return;
+
+                const currentX = e.pageX ?? e.touches[0].pageX;
+                const diffX = currentX - startX;
+                const rotate = diffX * 0.1; // Rotation effect
+                
+                // Show status indicator based on swipe direction
+                const opacity = Math.min(Math.abs(diffX) / 100, 1);
+                if(diffX > 0) {
+                    likeIndicator.style.opacity = opacity;
+                    nopeIndicator.style.opacity = 0;
+                } else {
+                    nopeIndicator.style.opacity = opacity;
+                    likeIndicator.style.opacity = 0;
+                }
+
+                card.style.transform = `translateX(${diffX}px) rotate(${rotate}deg)`;
+            }
+
+            function onPointerUp(e) {
+                if (!isDragging) return;
+                isDragging = false;
+
+                const currentX = e.pageX ?? e.changedTouches[0].pageX;
+                const diffX = currentX - startX;
+
+                card.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                likeIndicator.style.opacity = 0;
+                nopeIndicator.style.opacity = 0;
+
+                // Check swipe threshold
+                if (Math.abs(diffX) > card.clientWidth * 0.4) {
+                    const direction = diffX > 0 ? 1 : -1;
+                    card.style.transform = `translateX(${direction * (window.innerWidth)}px) rotate(${direction * 30}deg)`;
+                    
+                    // Remove card after animation
+                    setTimeout(() => {
+                        card.remove();
+                        handleNextCard();
+                    }, 400);
+
+                } else {
+                    // Reset card to original position
+                    card.style.transform = '';
+                }
+            }
+            
+            // Add listeners
+            card.addEventListener('mousedown', onPointerDown);
+            card.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('mouseup', onPointerUp);
+            card.addEventListener('touchstart', onPointerDown, { passive: true });
+            card.addEventListener('touchmove', onPointerMove, { passive: true });
+            card.addEventListener('touchend', onPointerUp);
+        }
+
+        /**
+         * Handles logic for moving to the next card.
+         */
+        function handleNextCard() {
+            currentIndex++;
+            
+            if (currentIndex < tasks.length) {
+                progressIndicator.textContent = `${currentIndex + 1} / ${tasks.length}`;
+                // Re-fetch the remaining cards to find the new top one
+                const remainingCards = document.querySelectorAll('.card');
+                if (remainingCards.length > 0) {
+                    initCard(remainingCards[0]);
+                }
+            } else {
+                // All cards are gone, show final screen
+                showFinalScreen();
+            }
+        }
+        
+        /**
+         * Hides the game and shows the final QR code screen.
+         */
+        function showFinalScreen() {
+             // You can replace this link with the actual URL for the QR code
+            const qrCodeUrl = "blob:https://imgur.com/c61b17ff-c930-4ca8-94ab-9db19978cf76";
+            // Since blob URLs don't work across sessions, I'll keep the placeholder logic but you can insert a real URL here.
+            // For example: const finalUrl = "https://your-website.com/ablaufplan";
+            // qrCodeImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(finalUrl)}`;
+            
+            gameContainer.classList.add('hidden');
+            finalScreen.classList.remove('hidden');
+            finalScreen.classList.add('flex');
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = createCards;
+    </script>
+</body>
+</html>
