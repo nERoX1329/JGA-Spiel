@@ -3,364 +3,476 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JGA Trinkspiel</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>JGA Trinkspiel - Canvas Edition</title>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <style>
-        /* Custom styles */
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            color: #F9FAFB; /* text-gray-100 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        
-        .challenge-box {
-            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-        }
-        
-        /* UPDATED: Changed hiding mechanism to prevent layout jumps */
-        .is-hidden {
-            display: none;
-        }
-
-        #confetti-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: rgba(0, 0, 0, 0.75);
-            z-index: 90;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .shot-counter-modal {
-            background-color: #EF4444; /* red-500 */
-            color: white;
-            padding: 2rem;
+        canvas {
+            background-color: #111827;
+            display: block;
             border-radius: 1rem;
-            text-align: center;
-            cursor: pointer;
-            width: 90%;
-            max-width: 350px;
-            user-select: none;
             box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-            animation: pop-in 0.3s ease-out;
+            cursor: pointer;
         }
-        .shot-counter-modal.finished {
-            animation: flash-green 0.5s ease-out, shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
-        }
-        @keyframes pop-in {
-            from { transform: scale(0.7); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes flash-green {
-            0%, 100% { background-color: #10B981; }
-            50% { background-color: #34D399; }
-        }
-        
-        @keyframes shake {
-          10%, 90% { transform: translate3d(-1px, 0, 0); }
-          20%, 80% { transform: translate3d(2px, 0, 0); }
-          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-          40%, 60% { transform: translate3d(4px, 0, 0); }
+        /* Hidden div for QR code generation */
+        #qrcode-container {
+            display: none;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center h-screen p-4">
-
-    <!-- Confetti Canvas -->
-    <canvas id="confetti-canvas"></canvas>
-
-    <!-- Main Game Container -->
-    <div id="game-container" class="w-full max-w-md text-center">
-        <h1 class="text-4xl md:text-5xl font-black text-gray-100">JGA Challenge</h1>
-        <p id="progress-indicator" class="text-lg font-bold mt-2 text-emerald-400">Aufgabe 1 / 5</p>
-
-        <!-- Challenge Display Area -->
-        <div id="challenge-box" class="challenge-box bg-gray-800 rounded-2xl p-6 md:p-8 mt-8 shadow-2xl border border-gray-700">
-            <h2 id="challenge-title" class="text-2xl font-bold text-white mb-4"></h2>
-            <p id="challenge-description" class="text-gray-300 text-lg leading-relaxed"></p>
-        </div>
-
-        <!-- View 1: Initial Choice -->
-        <div id="initial-view" class="action-view w-full">
-            <div class="mt-8 flex flex-col md:flex-row items-center gap-4">
-                <button id="accept-button" class="w-full md:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg order-1">
-                    CHALLENGE ACCEPTED
-                </button>
-                <span class="font-bold text-gray-400 text-xl order-2">ODER</span>
-                <button id="fail-button" class="w-full md:flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg order-3">
-                </button>
-            </div>
-        </div>
-        
-        <!-- View 2: In-Progress Challenge -->
-        <div id="progress-view" class="action-view w-full is-hidden">
-             <div class="mt-8 flex flex-col items-center gap-4">
-                <button id="pass-button" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg">
-                    BESTANDEN!
-                </button>
-                <button id="back-button" class="text-gray-400 hover:text-white font-bold py-2 transition">
-                    Zurück zur Auswahl
-                </button>
-            </div>
-        </div>
-
-    </div>
-    
-    <!-- Shot Counter Modal -->
-    <div id="shot-counter-backdrop" class="modal-backdrop hidden">
-        <div id="shot-counter-modal" class="shot-counter-modal">
-            <p class="text-lg">Tippe für jeden Shot!</p>
-            <p id="shot-text" class="text-5xl font-black my-4"></p>
-            <p class="text-sm">(Tippe zum Fortfahren)</p>
-        </div>
-    </div>
-
-    <!-- Final Screen with QR Code -->
-    <div id="final-screen" class="hidden flex-col items-center justify-center text-center p-8">
-        <h2 class="text-5xl font-black text-emerald-400 mb-4">GESCHAFFT!</h2>
-        <p class="text-xl text-gray-200 mb-8">Starke Leistung! Hier ist der Ablaufplan.</p>
-        <a id="qr-link" href="https://nerox1329.github.io/Ablaufplan/" target="_blank" rel="noopener noreferrer">
-            <div class="bg-white p-4 rounded-xl shadow-lg">
-                <img id="qr-code" src="" alt="QR Code zum Ablaufplan"
-                     onerror="this.onerror=null; this.src='https://placehold.co/250x250/ffffff/000000?text=QR+Code+fehlt';">
-            </div>
-        </a>
-         <button onclick="location.reload()" class="mt-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105">
-            Nochmal spielen
-        </button>
-    </div>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="qrcode-container"></div>
 
     <script>
+        // --- GAME SETUP ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const qrcodeContainer = document.getElementById('qrcode-container');
+
+        // Adjust canvas size for high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Fixed canvas size for consistent layout
+        const canvasWidth = 500;
+        const canvasHeight = 800;
+        canvas.width = canvasWidth * dpr;
+        canvas.height = canvasHeight * dpr;
+        canvas.style.width = `${canvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+        ctx.scale(dpr, dpr);
+
         // --- CONFIGURATION ---
         const tasks = [
-            {
-                title: "Schätzmeister",
-                description: "Beantworte eine von fünf Schätzfragen deines Trauzeugen richtig.",
-                penalty: 1
-            },
-            {
-                title: "Bundesliga-Duell",
-                description: "Zähle abwechselnd mit dem Trauzeugen die Bundesligisten auf, bis einer nicht mehr weiter weiß.",
-                penalty: 2
-            },
-            {
-                title: "Prost, Fremder!",
-                description: "Finde jemanden im Zugabteil, der mit dir mit einem Shot anstößt.",
-                penalty: 3 
-            },
-            {
-                title: "Die Durchsage",
-                description: "Stehe auf und frage gut verständlich, sodass es im ganzen Wagon zu hören ist: 'Entschuldigung, ist hier zufällig ein Syrer an Bord?'.",
-                penalty: 4
-            },
-            {
-                title: "Der Eherat",
-                description: "Finde eine Person Ü50 oder ein altes Ehepaar, setze dich zu ihnen und rede mindestens 3 Minuten darüber, wie eine erfolgreiche Ehe aussieht.",
-                penalty: 5
-            },
+            { title: "Schätzfragen", description: "Beantworte eine von fünf Schätzfragen deines Trauzeugen richtig.", penalty: 1 },
+            { title: "Bundesliga-Duell", description: "Du und dein Trauzeuge im direkten Duell: Nennt abwechselnd einen aktuellen Bundesligisten. Wer als Erster passt oder einen Fehler macht, verliert.", penalty: 2 },
+            { title: "Prost, Fremder!", description: "Deine Mission: Finde eine Person im Zug, die nicht zu eurer Gruppe gehört, und überzeuge sie, mit dir einen Shot auf die Ehe zu trinken.", penalty: 3 },
+            { title: "Die Durchsage", description: "Stehe auf und frage laut und deutlich, sodass es im ganzen Wagon zu hören ist: 'Entschuldigung, ist hier zufällig ein Syrer an Bord?'.", penalty: 4 },
+            { title: "Der Eherat", description: "Finde eine ältere Person oder ein Ehepaar, setze dich zu ihnen und frage sie nach dem ultimativen Geheimtipp für eine glückliche Ehe.", penalty: 5 },
         ];
 
-        // --- DOM ELEMENTS ---
-        const gameContainer = document.getElementById('game-container');
-        const progressIndicator = document.getElementById('progress-indicator');
-        const challengeBox = document.getElementById('challenge-box');
-        const challengeTitle = document.getElementById('challenge-title');
-        const challengeDescription = document.getElementById('challenge-description');
-        
-        // Views
-        const initialView = document.getElementById('initial-view');
-        const progressView = document.getElementById('progress-view');
+        const estimationQuestions = [
+            { question: "Wie groß ist die Luftlinie vom Lüneburger Hauptbahnhof zum Hamburger Hauptbahnhof in Kilometern?", answer: "Antwort: ca. 43 Kilometer (Toleranz: ±2 km)" },
+            { question: "Wie lang ist die Reeperbahn in Metern?", answer: "Antwort: ca. 930 Meter (Toleranz: ±50 m)" },
+            { question: "Wie viele Brücken gibt es in Hamburg insgesamt?", answer: "Antwort: Ungefähr 2.496 Brücken (Toleranz: ±125)" },
+            { question: "Wie viele Kilometer Gleise sind im Miniatur Wunderland verlegt?", answer: "Antwort: Über 15,7 Kilometer (Toleranz: ±0.8 km)" },
+            { question: "Wie viele Standardcontainer (TEU) werden im Hamburger Hafen durchschnittlich pro Tag umgeschlagen?", answer: "Antwort: Über 21.000 Container (Toleranz: ±1.000)" }
+        ];
 
-        // Buttons
-        const acceptButton = document.getElementById('accept-button');
-        const failButton = document.getElementById('fail-button');
-        const passButton = document.getElementById('pass-button');
-        const backButton = document.getElementById('back-button');
-        
-        const finalScreen = document.getElementById('final-screen');
-        const qrCodeImage = document.getElementById('qr-code');
-        
-        const shotCounterBackdrop = document.getElementById('shot-counter-backdrop');
-        const shotCounterModal = document.getElementById('shot-counter-modal');
-        const shotText = document.getElementById('shot-text');
-        
-        const canvas = document.getElementById('confetti-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // --- STATE ---
-        let currentIndex = 0;
-        let shotsRemaining = 0;
+        // --- GAME STATE ---
+        let gameState = {
+            currentView: 'initial', // 'initial', 'progress', 'estimation', 'shot_counter', 'final'
+            currentTaskIndex: 0,
+            currentEstimationIndex: 0,
+            shotsDrunk: 0,
+            challengesPassed: 0,
+            shotPenalty: 0,
+            shotsRemaining: 0,
+            estimationAnswerVisible: false,
+            confettiParticles: [],
+            buttons: [],
+            qrCodeImage: null,
+        };
 
-        // --- FUNCTIONS ---
-        
-        function displayChallenge() {
-            const task = tasks[currentIndex];
-            challengeBox.classList.add('is-hidden');
-            challengeBox.style.opacity = 0; // Prepare for animation
-            challengeBox.style.transform = 'translateY(20px)';
-            
-            // Hide both button views initially
-            initialView.classList.add('is-hidden');
-            progressView.classList.add('is-hidden');
-            
-            setTimeout(() => {
-                progressIndicator.textContent = `Aufgabe ${currentIndex + 1} / ${tasks.length}`;
-                challengeTitle.textContent = task.title;
-                challengeDescription.textContent = task.description;
-                failButton.innerHTML = `${task.penalty} SHOT${task.penalty > 1 ? 'S' : ''}!`;
-
-                // Show the content and the initial choice buttons
-                challengeBox.classList.remove('is-hidden');
-                challengeBox.style.opacity = 1;
-                challengeBox.style.transform = 'translateY(0)';
-                initialView.classList.remove('is-hidden');
-            }, 300);
+        // --- DRAWING HELPERS ---
+        function drawRoundedRect(x, y, width, height, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
         }
 
-        function switchViews() {
-            initialView.classList.toggle('is-hidden');
-            progressView.classList.toggle('is-hidden');
+        function drawText(text, x, y, size, weight, color, align = 'center', baseline = 'middle') {
+            ctx.font = `${weight} ${size}px Inter`;
+            ctx.fillStyle = color;
+            ctx.textAlign = align;
+            ctx.textBaseline = baseline;
+            ctx.fillText(text, x, y);
+        }
+
+        function wrapText(text, x, y, maxWidth, lineHeight, size, weight, color) {
+            ctx.font = `${weight} ${size}px Inter`;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            
+            const words = text.split(' ');
+            let line = '';
+            let currentY = y;
+
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, currentY);
+                    line = words[n] + ' ';
+                    currentY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, currentY);
+        }
+
+        // --- BUTTON HANDLING ---
+        function createButton(text, x, y, width, height, colors, onClick) {
+            return { text, x, y, width, height, colors, onClick };
+        }
+
+        function drawButton(button) {
+            drawRoundedRect(button.x, button.y, button.width, button.height, 12, button.colors.bg);
+            drawText(button.text, button.x + button.width / 2, button.y + button.height / 2, 18, 'bold', button.colors.text);
+        }
+        
+        function handleCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            for (const button of gameState.buttons) {
+                if (x > button.x && x < button.x + button.width && y > button.y && y < button.y + button.height) {
+                    button.onClick();
+                    return; // Prevent multiple button clicks
+                }
+            }
+        }
+        canvas.addEventListener('click', handleCanvasClick);
+        
+        // --- VIEW DRAWING FUNCTIONS ---
+
+        function drawHUD() {
+            // Title
+            drawText('JGA Challenge', canvasWidth / 2, 80, 48, '900', '#F9FAFB'); 
+            
+            // Progress
+            const progressText = `Aufgabe ${gameState.currentTaskIndex + 1} / ${tasks.length}`;
+            drawText(progressText, canvasWidth / 2, 130, 18, 'bold', '#34D399'); 
+
+            // Score Counters
+            drawText(gameState.challengesPassed, canvasWidth / 2 - 100, 190, 36, '900', '#34D399'); 
+            drawText('Bestanden', canvasWidth / 2 - 100, 220, 12, 'normal', '#9CA3AF'); 
+
+            drawText(gameState.shotsDrunk, canvasWidth / 2 + 100, 190, 36, '900', '#EF4444'); 
+            drawText('Shots getrunken', canvasWidth / 2 + 100, 220, 12, 'normal', '#9CA3AF'); 
+        }
+
+        function drawChallengeBox(task) {
+            drawRoundedRect(40, 260, canvasWidth - 80, 200, 16, '#1F2937'); 
+            drawText(task.title, canvasWidth / 2, 300, 24, 'bold', '#FFFFFF'); 
+            wrapText(task.description, canvasWidth / 2, 340, canvasWidth - 120, 28, 18, 'normal', '#D1D5DB'); 
+        }
+
+        function setInitialViewButtons() {
+            gameState.buttons = [];
+            const task = tasks[gameState.currentTaskIndex];
+            const penaltyText = `${task.penalty} SHOT${task.penalty > 1 ? 'S' : ''}!`;
+
+            gameState.buttons.push(createButton('CHALLENGE ACCEPTED', 60, 480, 380, 60, {bg: '#2563EB', text: '#FFF'}, handleAccept));
+            drawText('ODER', canvasWidth/2, 570, 20, 'bold', '#9CA3AF');
+            gameState.buttons.push(createButton(penaltyText, 60, 600, 380, 60, {bg: '#DC2626', text: '#FFF'}, handleFail));
+        }
+        
+        function setProgressViewButtons() {
+            gameState.buttons = [];
+            // Bestanden Button
+            gameState.buttons.push(createButton('BESTANDEN!', 60, 480, 380, 60, {bg: '#10B981', text: '#FFF'}, handlePass));
+            
+            // Verkackt Button
+            gameState.buttons.push(createButton('VERKACKT! (SHOTS!)', 60, 550, 380, 60, {bg: '#DC2626', text: '#FFF'}, handleFail));
+
+            // Zurück Button
+            gameState.buttons.push(createButton('Zurück zur Auswahl', 150, 630, 200, 40, {bg: 'transparent', text: '#9CA3AF'}, () => {
+                gameState.currentView = 'initial';
+            }));
+        }
+
+        function setEstimationViewButtons() {
+            gameState.buttons = [];
+
+            // "Back" button is always present
+            gameState.buttons.push(createButton('Zurück zur Auswahl', 150, 720, 200, 40, {bg: 'transparent', text: '#9CA3AF'}, () => {
+                gameState.currentView = 'initial';
+                // Reset answer visibility when going back
+                gameState.estimationAnswerVisible = false;
+            }));
+
+            if (!gameState.estimationAnswerVisible) {
+                // Before revealing the answer, only show this button
+                gameState.buttons.push(createButton('Antwort anzeigen', 60, 600, 380, 50, {bg: '#2563EB', text: '#FFF'}, () => {
+                    gameState.estimationAnswerVisible = true;
+                }));
+            } else {
+                // After revealing the answer, show evaluation buttons
+                gameState.buttons.push(createButton('Richtig geraten! (BESTANDEN)', 60, 560, 380, 50, {bg: '#10B981', text: '#FFF'}, handlePass)); 
+
+                if (gameState.currentEstimationIndex < estimationQuestions.length - 1) {
+                    gameState.buttons.push(createButton('Falsch geraten (Nächste Frage)', 60, 620, 380, 50, {bg: '#4B5563', text: '#FFF'}, () => { 
+                        gameState.currentEstimationIndex++;
+                        gameState.estimationAnswerVisible = false; // Reset for the next question
+                    }));
+                } else {
+                    gameState.buttons.push(createButton('Leider keine geschafft (SHOTS!)', 60, 620, 380, 50, {bg: '#DC2626', text: '#FFF'}, handleFail)); 
+                }
+            }
+        }
+
+        function drawShotCounterView() {
+            // Dim background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Modal
+            const modalWidth = 350;
+            const modalHeight = 200;
+            drawRoundedRect((canvasWidth - modalWidth) / 2, (canvasHeight - modalHeight) / 2, modalWidth, modalHeight, 16, '#EF4444');
+            
+            drawText('Tippe für jeden Shot!', canvasWidth/2, (canvasHeight/2) - 50, 18, 'normal', '#FFF');
+            const shotText = `Noch ${gameState.shotsRemaining} Shot${gameState.shotsRemaining > 1 ? 's' : ''}`;
+            drawText(shotText, canvasWidth/2, canvasHeight/2, 50, '900', '#FFF');
+            drawText('(Tippe zum Fortfahren)', canvasWidth/2, (canvasHeight/2) + 50, 14, 'normal', '#FFF');
+            
+            // The whole screen is a button here
+            gameState.buttons = [{
+                x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+                onClick: () => {
+                    if (gameState.shotsRemaining > 0) {
+                        gameState.shotsRemaining--;
+                        if (gameState.shotsRemaining === 0) {
+                            // Deactivate button immediately to prevent multiple clicks
+                            gameState.buttons = [];
+                            triggerConfetti(handleNextChallenge);
+                        }
+                    }
+                }
+            }];
+        }
+
+        function drawFinalView() {
+            drawText('GESCHAFFT!', canvasWidth/2, 200, 60, '900', '#34D399');
+            drawText('Starke Leistung! Hier ist der Ablaufplan.', canvasWidth/2, 280, 20, 'normal', '#D1D5DB');
+
+            const qrArea = {
+                x: canvasWidth / 2 - 135,
+                y: 340,
+                width: 270,
+                height: 270
+            };
+
+            // Draw QR Code
+            if (gameState.qrCodeImage) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(qrArea.x, qrArea.y, qrArea.width, qrArea.height);
+                ctx.drawImage(gameState.qrCodeImage, qrArea.x + 10, qrArea.y + 10, 250, 250);
+            }
+
+            gameState.buttons = [];
+            
+            // Add invisible button over the QR code for the link
+            gameState.buttons.push({
+                ...qrArea,
+                onClick: () => {
+                    window.open('https://nerox1329.github.io/Ablaufplan/', '_blank');
+                }
+            });
+        }
+
+        // --- GAME LOGIC ---
+        function handleAccept() {
+            if (gameState.currentTaskIndex === 0) { // Schätzfragen
+                gameState.currentView = 'estimation';
+            } else {
+                gameState.currentView = 'progress';
+            }
+        }
+        
+        function handleFail() {
+            const penalty = tasks[gameState.currentTaskIndex].penalty;
+            gameState.shotsDrunk += penalty;
+            gameState.shotPenalty = penalty;
+            gameState.shotsRemaining = penalty;
+            gameState.currentView = 'shot_counter';
         }
 
         function handlePass() {
+            gameState.challengesPassed++;
             triggerConfetti(handleNextChallenge);
         }
 
-        function handleFail() {
-            const penalty = tasks[currentIndex].penalty;
-            showShotCounter(penalty);
-        }
-
         function handleNextChallenge() {
-            currentIndex++;
-            if (currentIndex < tasks.length) {
-                // Ensure we return to the initial view for the next challenge
-                if (!initialView.classList.contains('is-hidden')) {
-                     // This case should not happen, but as a fallback
-                } else {
-                    switchViews(); // Switch back to initial view
-                }
-                displayChallenge();
+            gameState.currentTaskIndex++;
+            if (gameState.currentTaskIndex >= tasks.length) {
+                gameState.currentView = 'final';
+                generateQRCode();
             } else {
-                showFinalScreen();
+                gameState.currentView = 'initial';
+                gameState.currentEstimationIndex = 0;
+                gameState.estimationAnswerVisible = false;
             }
-        }
-        
-        // --- SHOT COUNTER LOGIC ---
-        function showShotCounter(penalty) {
-            shotsRemaining = penalty;
-            shotCounterModal.classList.remove('finished');
-            updateShotText();
-            shotCounterBackdrop.classList.remove('hidden');
         }
 
-        function updateShotText() {
-            if (shotsRemaining > 0) {
-                shotText.textContent = `Noch ${shotsRemaining} Shot${shotsRemaining > 1 ? 's' : ''}`;
-            } else {
-                shotText.textContent = 'Prost!';
-                shotCounterModal.classList.add('finished');
-                setTimeout(() => {
-                    shotCounterBackdrop.classList.add('hidden');
-                    handleNextChallenge();
-                }, 1200);
+        // --- QR CODE ---
+        function generateQRCode() {
+            if (gameState.qrCodeImage) return; // Don't regenerate
+            new QRCode(qrcodeContainer, {
+                text: "https://nerox1329.github.io/Ablaufplan/",
+                width: 250,
+                height: 250,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            // The library creates an img element inside the container
+            const img = qrcodeContainer.querySelector('img');
+            img.onload = () => {
+                gameState.qrCodeImage = img;
             }
+            img.onerror = () => console.error("QR Code image could not be loaded.");
         }
-        
-        shotCounterModal.addEventListener('click', () => {
-            if (shotsRemaining > 0) {
-                shotsRemaining--;
-                updateShotText();
-            }
-        });
+
 
         // --- CONFETTI LOGIC ---
-        let confettiParticles = [];
         function triggerConfetti(onComplete) {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
             const particleCount = 200;
             const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
             for (let i = 0; i < particleCount; i++) {
-                confettiParticles.push({
-                    x: canvas.width / 2,
-                    y: canvas.height,
+                gameState.confettiParticles.push({
+                    x: canvasWidth / 2,
+                    y: canvasHeight,
                     vx: (Math.random() - 0.5) * 20,
                     vy: Math.random() * -20 - 15,
                     size: Math.random() * 6 + 3,
                     color: colors[Math.floor(Math.random() * colors.length)],
-                    alpha: 1
+                    alpha: 1,
+                    onComplete: i === 0 ? onComplete : null // Attach callback to one particle
                 });
             }
-            animateConfetti(onComplete);
         }
 
-        function animateConfetti(onComplete) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            confettiParticles.forEach((p, i) => {
+        function animateConfetti() {
+            let completed = false;
+            gameState.confettiParticles.forEach((p, i) => {
                 p.vy += 0.25;
                 p.x += p.vx;
                 p.y += p.vy;
                 p.alpha -= 0.01;
                 
                 if (p.alpha <= 0) {
-                    confettiParticles.splice(i, 1);
+                    if (p.onComplete) {
+                        p.onComplete();
+                        completed = true;
+                    }
+                    gameState.confettiParticles.splice(i, 1);
                 } else {
                     ctx.globalAlpha = p.alpha;
-                    ctx.fillStyle = p.color;
-                    ctx.beginPath();
-                    ctx.fillRect(p.x, p.y, p.size, p.size * 2);
-                    ctx.closePath();
+                    drawRoundedRect(p.x, p.y, p.size, p.size * 2, 2, p.color);
                     ctx.globalAlpha = 1;
                 }
             });
             
-            if (confettiParticles.length > 0) {
-                requestAnimationFrame(() => animateConfetti(onComplete));
-            } else {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (onComplete) {
-                    onComplete();
-                }
+            if (gameState.confettiParticles.length === 0 && !completed) {
+                // Failsafe in case the particle with the callback was removed early
+                const onComplete = gameState.confettiParticles.find(p => p.onComplete)?.onComplete;
+                if(onComplete) onComplete();
             }
         }
 
-        // --- FINAL SCREEN ---
-        function showFinalScreen() {
-            gameContainer.classList.add('hidden');
-            finalScreen.classList.remove('hidden');
-            finalScreen.classList.add('flex');
-            qrCodeImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://nerox1329.github.io/Ablaufplan/`;
+        // --- MAIN RENDER LOOP ---
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Redraw the base view first before potential overlays
+            switch(gameState.currentView) {
+                case 'initial':
+                case 'progress':
+                case 'estimation':
+                    drawHUD();
+                    drawChallengeBox(tasks[gameState.currentTaskIndex]);
+                    break;
+                case 'final':
+                    // Final view has its own background
+                    break;
+                // No default case needed if shot_counter draws on top
+            }
+
+            // Draw buttons and overlays based on view
+            switch(gameState.currentView) {
+                case 'initial':
+                    setInitialViewButtons();
+                    gameState.buttons.forEach(drawButton);
+                    break;
+                case 'progress':
+                    setProgressViewButtons();
+                    gameState.buttons.forEach(drawButton);
+                    break;
+                case 'estimation':
+                    const q = estimationQuestions[gameState.currentEstimationIndex];
+                    drawRoundedRect(40, 260, canvasWidth - 80, 280, 16, '#1F2937'); 
+                    wrapText(`Frage ${gameState.currentEstimationIndex + 1}: ${q.question}`, canvasWidth/2, 290, canvasWidth - 120, 28, 18, 'bold', '#FFF'); 
+                    if (gameState.estimationAnswerVisible) {
+                        wrapText(q.answer, canvasWidth/2, 400, canvasWidth - 120, 28, 18, 'bold', '#34D399'); 
+                    }
+                    setEstimationViewButtons();
+                    gameState.buttons.forEach(drawButton);
+                    break;
+                case 'shot_counter':
+                    // Redraw the view underneath the overlay first
+                    drawHUD();
+                    drawChallengeBox(tasks[gameState.currentTaskIndex]);
+                    // Then draw the transparent overlay and modal
+                    drawShotCounterView();
+                    break;
+                case 'final':
+                    drawFinalView();
+                    gameState.buttons.forEach(b => {
+                        // Don't draw the invisible button over the QR code
+                        if (b.text) {
+                            drawButton(b);
+                        }
+                    });
+                    break;
+            }
+            
+            // Always draw confetti if there are particles
+            if (gameState.confettiParticles.length > 0) {
+                animateConfetti();
+            }
+
+            requestAnimationFrame(draw);
         }
 
         // --- INITIALIZATION ---
         window.onload = () => {
-            challengeBox.classList.add('is-hidden');
-            displayChallenge();
-            
-            // Event Listeners
-            acceptButton.addEventListener('click', switchViews);
-            backButton.addEventListener('click', switchViews);
-            passButton.addEventListener('click', handlePass);
-            failButton.addEventListener('click', handleFail);
+            console.log("Game Loaded. Starting render loop.");
+            draw();
         };
     </script>
 </body>
