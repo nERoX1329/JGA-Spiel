@@ -79,7 +79,7 @@
 
         // --- GAME STATE ---
         let gameState = {
-            currentView: 'initial', // 'initial', 'progress', 'estimation', 'shot_counter', 'final'
+            currentView: 'start_screen', // 'start_screen', 'initial', 'progress', 'estimation', 'shot_counter', 'final'
             currentTaskIndex: 0,
             currentEstimationIndex: 0,
             shotsDrunk: 0,
@@ -167,6 +167,18 @@
         canvas.addEventListener('click', handleCanvasClick);
         
         // --- VIEW DRAWING FUNCTIONS ---
+
+        function drawStartScreen() {
+            drawText('JGA', canvasWidth / 2, 250, 120, '900', '#F9FAFB');
+            drawText("Jan's Challenges", canvasWidth / 2, 360, 50, 'bold', '#34D399');
+            
+            gameState.buttons = [
+                createButton('SPIEL STARTEN', 100, 500, 300, 70, {bg: '#2563EB', text: '#FFF'}, () => {
+                    gameState.currentView = 'initial';
+                })
+            ];
+            gameState.buttons.forEach(drawButton);
+        }
 
         function drawHUD() {
             // Title
@@ -411,6 +423,9 @@
 
             // Redraw the base view first before potential overlays
             switch(gameState.currentView) {
+                case 'start_screen':
+                     // Has its own full background
+                    break;
                 case 'initial':
                 case 'progress':
                 case 'estimation':
@@ -425,6 +440,9 @@
 
             // Draw buttons and overlays based on view
             switch(gameState.currentView) {
+                case 'start_screen':
+                    drawStartScreen();
+                    break;
                 case 'initial':
                     setInitialViewButtons();
                     gameState.buttons.forEach(drawButton);
