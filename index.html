@@ -16,96 +16,120 @@
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            touch-action: none; /* Prevents scrolling on mobile while swiping */
         }
         
-        /* Card styles */
-        .card-stack {
-            perspective: 1000px;
-            position: relative;
-            width: 90vw;
-            height: 75vh;
-            max-width: 400px;
-            max-height: 600px;
+        .challenge-box {
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        
+        /* UPDATED: Changed hiding mechanism to prevent layout jumps */
+        .is-hidden {
+            display: none;
         }
 
-        .card {
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            position: absolute;
-            background-color: white;
-            color: #374151; /* text-gray-700 */
-            border-radius: 1.5rem; /* 24px */
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            cursor: grab;
-            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
-            will-change: transform;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between; /* Changed: Pushes content apart */
-            align-items: center;
-            padding: 1.5rem; /* 24px */
-            text-align: center;
-            border: 1px solid #e5e7eb;
-            overflow: hidden; /* Added: Prevents content spillover */
+            z-index: 100;
+            pointer-events: none;
         }
 
-        .card:active {
-            cursor: grabbing;
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 90;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .shot-counter-modal {
+            background-color: #EF4444; /* red-500 */
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            cursor: pointer;
+            width: 90%;
+            max-width: 350px;
+            user-select: none;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            animation: pop-in 0.3s ease-out;
+        }
+        .shot-counter-modal.finished {
+            animation: flash-green 0.5s ease-out, shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes pop-in {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes flash-green {
+            0%, 100% { background-color: #10B981; }
+            50% { background-color: #34D399; }
         }
         
-        /* Scrollbar styling for content area */
-        .card-content::-webkit-scrollbar {
-            width: 5px;
-        }
-        .card-content::-webkit-scrollbar-thumb {
-            background: #d1d5db; /* gray-300 */
-            border-radius: 10px;
-        }
-
-
-        /* Status overlay that appears during swipe */
-        .status-indicator {
-            position: absolute;
-            top: 50px;
-            font-weight: 900;
-            font-size: 2.25rem; /* 36px */
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-            pointer-events: none; /* Makes sure it doesn't interfere with dragging */
-            border: 4px solid;
-            padding: 0.5rem 1rem;
-            border-radius: 0.75rem;
-        }
-
-        .status-indicator.like {
-            color: #10B981; /* Emerald 500 */
-            border-color: #10B981;
-            right: 40px;
-            transform: rotate(15deg);
-        }
-
-        .status-indicator.nope {
-            color: #EF4444; /* Red 500 */
-            border-color: #EF4444;
-            left: 40px;
-            transform: rotate(-15deg);
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center h-screen w-screen">
+<body class="bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center h-screen p-4">
+
+    <!-- Confetti Canvas -->
+    <canvas id="confetti-canvas"></canvas>
 
     <!-- Main Game Container -->
-    <div id="game-container" class="flex flex-col items-center justify-center w-full h-full">
-        <h1 class="text-4xl font-black mb-2 text-gray-200">JGA Challenge</h1>
-        <p id="progress-indicator" class="text-xl font-bold mb-8 text-emerald-400">1 / 5</p>
+    <div id="game-container" class="w-full max-w-md text-center">
+        <h1 class="text-4xl md:text-5xl font-black text-gray-100">JGA Challenge</h1>
+        <p id="progress-indicator" class="text-lg font-bold mt-2 text-emerald-400">Aufgabe 1 / 5</p>
 
-        <div id="card-stack" class="card-stack">
-            <!-- Cards will be dynamically inserted here by JavaScript -->
+        <!-- Challenge Display Area -->
+        <div id="challenge-box" class="challenge-box bg-gray-800 rounded-2xl p-6 md:p-8 mt-8 shadow-2xl border border-gray-700">
+            <h2 id="challenge-title" class="text-2xl font-bold text-white mb-4"></h2>
+            <p id="challenge-description" class="text-gray-300 text-lg leading-relaxed"></p>
         </div>
 
-        <div class="mt-8 text-center text-gray-400 px-4">
-            <p>Wische links für <span class="text-red-500 font-bold">SHOTS</span>, rechts für <span class="text-emerald-500 font-bold">BESTANDEN</span>.</p>
+        <!-- View 1: Initial Choice -->
+        <div id="initial-view" class="action-view w-full">
+            <div class="mt-8 flex flex-col md:flex-row items-center gap-4">
+                <button id="accept-button" class="w-full md:flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg order-1">
+                    CHALLENGE ACCEPTED
+                </button>
+                <span class="font-bold text-gray-400 text-xl order-2">ODER</span>
+                <button id="fail-button" class="w-full md:flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg order-3">
+                </button>
+            </div>
+        </div>
+        
+        <!-- View 2: In-Progress Challenge -->
+        <div id="progress-view" class="action-view w-full is-hidden">
+             <div class="mt-8 flex flex-col items-center gap-4">
+                <button id="pass-button" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-6 rounded-xl text-lg transition-transform transform hover:scale-105 shadow-lg">
+                    BESTANDEN!
+                </button>
+                <button id="back-button" class="text-gray-400 hover:text-white font-bold py-2 transition">
+                    Zurück zur Auswahl
+                </button>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Shot Counter Modal -->
+    <div id="shot-counter-backdrop" class="modal-backdrop hidden">
+        <div id="shot-counter-modal" class="shot-counter-modal">
+            <p class="text-lg">Tippe für jeden Shot!</p>
+            <p id="shot-text" class="text-5xl font-black my-4"></p>
+            <p class="text-sm">(Tippe zum Fortfahren)</p>
         </div>
     </div>
 
@@ -128,192 +152,216 @@
         // --- CONFIGURATION ---
         const tasks = [
             {
-                title: "Aufgabe 1: Schätzmeister",
-                description: "Du bekommst 5 Schätzfragen. Beantwortest du eine richtig, trinken alle anderen einen Shot. Schaffst du keine, trinkst du selbst.",
-                shots: 1 
+                title: "Schätzmeister",
+                description: "Beantworte eine von fünf Schätzfragen deines Trauzeugen richtig.",
+                penalty: 1
             },
             {
-                title: "Aufgabe 2: Bundesliga-Duell",
-                description: "Zähle abwechselnd mit dem Trauzeugen die Bundesligisten auf. Wer zuerst nicht mehr weiter weiß, trinkt.",
-                shots: 2
+                title: "Bundesliga-Duell",
+                description: "Zähle abwechselnd mit dem Trauzeugen die Bundesligisten auf, bis einer nicht mehr weiter weiß.",
+                penalty: 2
             },
             {
-                title: "Aufgabe 3: Prost, Fremder!",
+                title: "Prost, Fremder!",
                 description: "Finde jemanden im Zugabteil, der mit dir mit einem Shot anstößt.",
-                shots: 3 
+                penalty: 3 
             },
             {
-                title: "Aufgabe 4: Die Durchsage",
+                title: "Die Durchsage",
                 description: "Stehe auf und frage gut verständlich, sodass es im ganzen Wagon zu hören ist: 'Entschuldigung, ist hier zufällig ein Syrer an Bord?'.",
-                shots: 4
+                penalty: 4
             },
             {
-                title: "Aufgabe 5: Der Eherat",
+                title: "Der Eherat",
                 description: "Finde eine Person Ü50 oder ein altes Ehepaar, setze dich zu ihnen und rede mindestens 3 Minuten darüber, wie eine erfolgreiche Ehe aussieht.",
-                shots: 5
+                penalty: 5
             },
         ];
 
         // --- DOM ELEMENTS ---
-        const cardStack = document.getElementById('card-stack');
-        const progressIndicator = document.getElementById('progress-indicator');
         const gameContainer = document.getElementById('game-container');
+        const progressIndicator = document.getElementById('progress-indicator');
+        const challengeBox = document.getElementById('challenge-box');
+        const challengeTitle = document.getElementById('challenge-title');
+        const challengeDescription = document.getElementById('challenge-description');
+        
+        // Views
+        const initialView = document.getElementById('initial-view');
+        const progressView = document.getElementById('progress-view');
+
+        // Buttons
+        const acceptButton = document.getElementById('accept-button');
+        const failButton = document.getElementById('fail-button');
+        const passButton = document.getElementById('pass-button');
+        const backButton = document.getElementById('back-button');
+        
         const finalScreen = document.getElementById('final-screen');
         const qrCodeImage = document.getElementById('qr-code');
         
+        const shotCounterBackdrop = document.getElementById('shot-counter-backdrop');
+        const shotCounterModal = document.getElementById('shot-counter-modal');
+        const shotText = document.getElementById('shot-text');
+        
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        
         // --- STATE ---
         let currentIndex = 0;
+        let shotsRemaining = 0;
 
         // --- FUNCTIONS ---
-
-        /**
-         * Creates and appends all task cards to the DOM in the correct order.
-         */
-        function createCards() {
-            progressIndicator.textContent = `1 / ${tasks.length}`; 
-            tasks.slice().reverse().forEach((task) => {
-                const card = document.createElement('div');
-                card.classList.add('card');
-                // Updated card layout for better text flow
-                card.innerHTML = `
-                    <!-- Status indicators are absolutely positioned relative to the card, so they don't affect flow -->
-                    <div class="absolute top-12 left-0 right-0 flex justify-between px-10 pointer-events-none z-10">
-                        <div class="status-indicator nope">SHOTS!</div>
-                        <div class="status-indicator like">TOP!</div>
-                    </div>
-
-                    <!-- Main text content area. It will grow and scroll if needed -->
-                    <div class="card-content w-full h-full overflow-y-auto pt-12">
-                        <h3 class="text-2xl font-bold text-gray-800 mb-4">${task.title}</h3>
-                        <p class="text-gray-600 leading-relaxed">${task.description}</p>
-                    </div>
-
-                    <!-- The 'Strafe' section, which will be pushed to the bottom by justify-between -->
-                    <div class="flex-shrink-0 pt-4">
-                        <div class="bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
-                            STRAFE: ${task.shots} SHOTS
-                        </div>
-                    </div>
-                `;
-                cardStack.prepend(card); 
-            });
-            updateCardStackVisuals();
-        }
         
-        /**
-         * Initializes event listeners for the current top card.
-         * @param {HTMLElement} card The card element to make interactive.
-         */
-        function initCard(card) {
-            if (!card) return;
-
-            let isDragging = false;
-            let startX = 0;
-            const nopeIndicator = card.querySelector('.status-indicator.nope');
-            const likeIndicator = card.querySelector('.status-indicator.like');
-
-            function onPointerDown(e) {
-                isDragging = true;
-                startX = e.pageX ?? e.touches[0].pageX;
-                card.style.transition = 'none';
-            }
-
-            function onPointerMove(e) {
-                if (!isDragging) return;
-                const currentX = e.pageX ?? e.touches[0].pageX;
-                const diffX = currentX - startX;
-                const rotate = diffX * 0.1;
-                const opacity = Math.min(Math.abs(diffX) / 100, 1);
-                
-                if(diffX > 0) {
-                    likeIndicator.style.opacity = opacity;
-                    nopeIndicator.style.opacity = 0;
-                } else {
-                    nopeIndicator.style.opacity = opacity;
-                    likeIndicator.style.opacity = 0;
-                }
-
-                card.style.transform = `translateX(${diffX}px) rotate(${rotate}deg)`;
-            }
-
-            function onPointerUp(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                likeIndicator.style.opacity = 0;
-                nopeIndicator.style.opacity = 0;
-                card.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-                
-                const diffX = (e.pageX ?? e.changedTouches[0].pageX) - startX;
-
-                if (Math.abs(diffX) > card.clientWidth * 0.4) {
-                    const direction = diffX > 0 ? 1 : -1;
-                    card.style.transform = `translateX(${direction * window.innerWidth}px) rotate(${direction * 30}deg)`;
-                    setTimeout(handleNextCard, 400);
-                } else {
-                    card.style.transform = '';
-                }
-            }
+        function displayChallenge() {
+            const task = tasks[currentIndex];
+            challengeBox.classList.add('is-hidden');
+            challengeBox.style.opacity = 0; // Prepare for animation
+            challengeBox.style.transform = 'translateY(20px)';
             
-            card.addEventListener('mousedown', onPointerDown);
-            document.addEventListener('mousemove', onPointerMove);
-            document.addEventListener('mouseup', onPointerUp);
-            card.addEventListener('touchstart', onPointerDown, { passive: true });
-            document.addEventListener('touchmove', onPointerMove, { passive: true });
-            document.addEventListener('touchend', onPointerUp);
+            // Hide both button views initially
+            initialView.classList.add('is-hidden');
+            progressView.classList.add('is-hidden');
+            
+            setTimeout(() => {
+                progressIndicator.textContent = `Aufgabe ${currentIndex + 1} / ${tasks.length}`;
+                challengeTitle.textContent = task.title;
+                challengeDescription.textContent = task.description;
+                failButton.innerHTML = `${task.penalty} SHOT${task.penalty > 1 ? 'S' : ''}!`;
+
+                // Show the content and the initial choice buttons
+                challengeBox.classList.remove('is-hidden');
+                challengeBox.style.opacity = 1;
+                challengeBox.style.transform = 'translateY(0)';
+                initialView.classList.remove('is-hidden');
+            }, 300);
         }
 
-        /**
-         * Sets the visual styles (transform, z-index) for the card stack.
-         */
-        function updateCardStackVisuals() {
-            const currentCards = document.querySelectorAll('#card-stack .card');
-            currentCards.forEach((card, index) => {
-                if (index === 0) { // Top card
-                    card.style.transform = '';
-                    card.style.zIndex = 10;
-                    initCard(card);
-                } else if (index > 0 && index < 3) { // Next 2 cards
-                    card.style.transform = `translateY(${index * 10}px) scale(${1 - (index * 0.03)})`;
-                    card.style.zIndex = 10 - index;
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
+        function switchViews() {
+            initialView.classList.toggle('is-hidden');
+            progressView.classList.toggle('is-hidden');
         }
 
+        function handlePass() {
+            triggerConfetti(handleNextChallenge);
+        }
 
-        /**
-         * Handles logic for moving to the next card.
-         */
-        function handleNextCard() {
-            const swipedCard = document.querySelector('#card-stack .card');
-            if (swipedCard) swipedCard.remove();
+        function handleFail() {
+            const penalty = tasks[currentIndex].penalty;
+            showShotCounter(penalty);
+        }
 
+        function handleNextChallenge() {
             currentIndex++;
             if (currentIndex < tasks.length) {
-                progressIndicator.textContent = `${currentIndex + 1} / ${tasks.length}`;
-                updateCardStackVisuals();
+                // Ensure we return to the initial view for the next challenge
+                if (!initialView.classList.contains('is-hidden')) {
+                     // This case should not happen, but as a fallback
+                } else {
+                    switchViews(); // Switch back to initial view
+                }
+                displayChallenge();
             } else {
                 showFinalScreen();
             }
         }
         
-        /**
-         * Hides the game and shows the final QR code screen.
-         */
-        function showFinalScreen() {
-            const finalUrl = "https://nerox1329.github.io/Ablaufplan/";
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(finalUrl)}`;
-            qrCodeImage.src = qrApiUrl;
+        // --- SHOT COUNTER LOGIC ---
+        function showShotCounter(penalty) {
+            shotsRemaining = penalty;
+            shotCounterModal.classList.remove('finished');
+            updateShotText();
+            shotCounterBackdrop.classList.remove('hidden');
+        }
+
+        function updateShotText() {
+            if (shotsRemaining > 0) {
+                shotText.textContent = `Noch ${shotsRemaining} Shot${shotsRemaining > 1 ? 's' : ''}`;
+            } else {
+                shotText.textContent = 'Prost!';
+                shotCounterModal.classList.add('finished');
+                setTimeout(() => {
+                    shotCounterBackdrop.classList.add('hidden');
+                    handleNextChallenge();
+                }, 1200);
+            }
+        }
+        
+        shotCounterModal.addEventListener('click', () => {
+            if (shotsRemaining > 0) {
+                shotsRemaining--;
+                updateShotText();
+            }
+        });
+
+        // --- CONFETTI LOGIC ---
+        let confettiParticles = [];
+        function triggerConfetti(onComplete) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const particleCount = 200;
+            const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
+            for (let i = 0; i < particleCount; i++) {
+                confettiParticles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height,
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: Math.random() * -20 - 15,
+                    size: Math.random() * 6 + 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1
+                });
+            }
+            animateConfetti(onComplete);
+        }
+
+        function animateConfetti(onComplete) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            confettiParticles.forEach((p, i) => {
+                p.vy += 0.25;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.01;
+                
+                if (p.alpha <= 0) {
+                    confettiParticles.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.fillRect(p.x, p.y, p.size, p.size * 2);
+                    ctx.closePath();
+                    ctx.globalAlpha = 1;
+                }
+            });
             
+            if (confettiParticles.length > 0) {
+                requestAnimationFrame(() => animateConfetti(onComplete));
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (onComplete) {
+                    onComplete();
+                }
+            }
+        }
+
+        // --- FINAL SCREEN ---
+        function showFinalScreen() {
             gameContainer.classList.add('hidden');
             finalScreen.classList.remove('hidden');
             finalScreen.classList.add('flex');
+            qrCodeImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://nerox1329.github.io/Ablaufplan/`;
         }
 
         // --- INITIALIZATION ---
-        window.onload = createCards;
+        window.onload = () => {
+            challengeBox.classList.add('is-hidden');
+            displayChallenge();
+            
+            // Event Listeners
+            acceptButton.addEventListener('click', switchViews);
+            backButton.addEventListener('click', switchViews);
+            passButton.addEventListener('click', handlePass);
+            failButton.addEventListener('click', handleFail);
+        };
     </script>
 </body>
 </html>
