@@ -19,6 +19,7 @@
             touch-action: none; /* Prevents scrolling on mobile while swiping */
         }
         
+        /* Card styles */
         .card-stack {
             perspective: 1000px;
             position: relative;
@@ -33,74 +34,62 @@
             height: 100%;
             position: absolute;
             background-color: white;
-            border-radius: 1.5rem;
+            color: #374151; /* text-gray-700 */
+            border-radius: 1.5rem; /* 24px */
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             cursor: grab;
             transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
             will-change: transform;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between; /* Changed: Pushes content apart */
             align-items: center;
-            padding: 2rem;
-            padding-bottom: 4rem;
+            padding: 1.5rem; /* 24px */
             text-align: center;
             border: 1px solid #e5e7eb;
+            overflow: hidden; /* Added: Prevents content spillover */
         }
 
-        .card:active { cursor: grabbing; }
+        .card:active {
+            cursor: grabbing;
+        }
+        
+        /* Scrollbar styling for content area */
+        .card-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .card-content::-webkit-scrollbar-thumb {
+            background: #d1d5db; /* gray-300 */
+            border-radius: 10px;
+        }
 
+
+        /* Status overlay that appears during swipe */
         .status-indicator {
             position: absolute;
             top: 50px;
             font-weight: 900;
-            font-size: 2.25rem;
+            font-size: 2.25rem; /* 36px */
             opacity: 0;
             transition: opacity 0.2s ease-in-out;
-            pointer-events: none;
+            pointer-events: none; /* Makes sure it doesn't interfere with dragging */
             border: 4px solid;
             padding: 0.5rem 1rem;
             border-radius: 0.75rem;
         }
 
         .status-indicator.like {
-            color: #10B981;
+            color: #10B981; /* Emerald 500 */
             border-color: #10B981;
             right: 40px;
             transform: rotate(15deg);
         }
 
         .status-indicator.nope {
-            color: #EF4444;
+            color: #EF4444; /* Red 500 */
             border-color: #EF4444;
             left: 40px;
             transform: rotate(-15deg);
-        }
-
-        /* Modal and Loader styles */
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
-            z-index: 40;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .loader {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #3498db;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -109,8 +98,12 @@
     <!-- Main Game Container -->
     <div id="game-container" class="flex flex-col items-center justify-center w-full h-full">
         <h1 class="text-4xl font-black mb-2 text-gray-200">JGA Challenge</h1>
-        <p id="progress-indicator" class="text-xl font-bold mb-8 text-emerald-400">1 / 6</p>
-        <div id="card-stack" class="card-stack"></div>
+        <p id="progress-indicator" class="text-xl font-bold mb-8 text-emerald-400">1 / 5</p>
+
+        <div id="card-stack" class="card-stack">
+            <!-- Cards will be dynamically inserted here by JavaScript -->
+        </div>
+
         <div class="mt-8 text-center text-gray-400 px-4">
             <p>Wische links für <span class="text-red-500 font-bold">SHOTS</span>, rechts für <span class="text-emerald-500 font-bold">BESTANDEN</span>.</p>
         </div>
@@ -122,77 +115,43 @@
         <p class="text-xl text-gray-200 mb-8">Starke Leistung! Hier ist der Ablaufplan.</p>
         <a id="qr-link" href="https://nerox1329.github.io/Ablaufplan/" target="_blank" rel="noopener noreferrer">
             <div class="bg-white p-4 rounded-xl shadow-lg">
-                <img id="qr-code" src="" alt="QR Code zum Ablaufplan" onerror="this.onerror=null; this.src='https://placehold.co/250x250/ffffff/000000?text=QR+Code+fehlt';">
+                <img id="qr-code" src="" alt="QR Code zum Ablaufplan"
+                     onerror="this.onerror=null; this.src='https://placehold.co/250x250/ffffff/000000?text=QR+Code+fehlt';">
             </div>
         </a>
-        <button onclick="location.reload()" class="mt-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105">
+         <button onclick="location.reload()" class="mt-8 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105">
             Nochmal spielen
         </button>
     </div>
-
-    <!-- Gemini-powered Quiz Modal -->
-    <div id="quiz-modal" class="modal-backdrop hidden">
-        <div class="bg-white text-gray-800 rounded-xl shadow-2xl w-11/12 max-w-md p-6 relative">
-            <h3 id="quiz-title" class="text-2xl font-bold mb-4 text-center">Schätzfragen</h3>
-            <p id="quiz-question" class="text-lg mb-4 h-32"></p>
-            <div id="quiz-answer-container" class="p-4 bg-gray-100 rounded-lg text-center hidden mb-4">
-                <p class="font-bold">Antwort:</p>
-                <p id="quiz-answer" class="text-emerald-600 font-bold"></p>
-            </div>
-            <button id="show-answer-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg mb-2">Antwort anzeigen</button>
-            <div class="flex justify-between items-center">
-                <button id="next-question-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Nächste Frage</button>
-                <p id="quiz-progress" class="font-bold"></p>
-                <button onclick="closeQuizModal()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Schließen</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Loading Indicator -->
-    <div id="loader" class="modal-backdrop hidden">
-        <div class="loader"></div>
-    </div>
-
 
     <script>
         // --- CONFIGURATION ---
         const tasks = [
             {
-                id: "quiz",
-                title: "Aufgabe 1: ✨ Schätzmeister",
-                description: "Klicke auf den Button, um 5 KI-generierte Schätzfragen zu erhalten. Beantwortest du eine richtig, trinken alle anderen 2 Shots. Schaffst du keine, trinkst du selbst.",
+                title: "Aufgabe 1: Schätzmeister",
+                description: "Du bekommst 5 Schätzfragen. Beantwortest du eine richtig, trinken alle anderen einen Shot. Schaffst du keine, trinkst du selbst.",
                 shots: 1 
             },
             {
-                id: "bundesliga",
                 title: "Aufgabe 2: Bundesliga-Duell",
-                description: "Jetzt wird es spannend! Du zählst jetzt abwechselnd mit dem Trauzeugen die Bundesligisten auf. Wer zuerst nicht mehr weiter weiß, trinkt.",
-                shots: 2 
+                description: "Zähle abwechselnd mit dem Trauzeugen die Bundesligisten auf. Wer zuerst nicht mehr weiter weiß, trinkt.",
+                shots: 2
             },
             {
-                id: "coc",
-                title: "Aufgabe 3: Clash of Clans",
-                description: "Öffne CoC und nimm die Herausforderung an. 3★: Alle anderen trinken 2 Shots. 2★: Du trinkst 2 Shots. 0-1★: Du trinkst 3 Shots!",
+                title: "Aufgabe 3: Prost, Fremder!",
+                description: "Finde jemanden im Zugabteil, der mit dir mit einem Shot anstößt.",
                 shots: 3 
             },
             {
-                id: "eherat",
-                title: "Aufgabe 4: Der Eherat",
-                description: "Finde eine Person Ü50 oder ein altes Ehepaar, setze dich dazu und rede mindestens 3 Minuten darüber, wie eine erfolgreiche Ehe aussieht.",
+                title: "Aufgabe 4: Die Durchsage",
+                description: "Stehe auf und frage gut verständlich, sodass es im ganzen Wagon zu hören ist: 'Entschuldigung, ist hier zufällig ein Syrer an Bord?'.",
                 shots: 4
             },
             {
-                id: "durchsage",
-                title: "Aufgabe 5: Die Durchsage",
-                description: "Du stehst auf und fragst einmal gut verständlich, sodass es im ganzen Raum zu hören ist: 'Entschuldigung, hat hier jemand den Bräutigam gesehen?'.",
+                title: "Aufgabe 5: Der Eherat",
+                description: "Finde eine Person Ü50 oder ein altes Ehepaar, setze dich zu ihnen und rede mindestens 3 Minuten darüber, wie eine erfolgreiche Ehe aussieht.",
                 shots: 5
             },
-            {
-                id: "endboss",
-                title: "Aufgabe 6: Die Endboss-Challenge",
-                description: "Du hast es bis hierhin geschafft! Für die letzte, ultimative Aufgabe frage deinen Trauzeugen. Auf ex!",
-                shots: 6 
-            }
         ];
 
         // --- DOM ELEMENTS ---
@@ -201,151 +160,50 @@
         const gameContainer = document.getElementById('game-container');
         const finalScreen = document.getElementById('final-screen');
         const qrCodeImage = document.getElementById('qr-code');
-        const quizModal = document.getElementById('quiz-modal');
-        const loader = document.getElementById('loader');
         
-        // --- QUIZ MODAL ELEMENTS ---
-        const quizQuestion = document.getElementById('quiz-question');
-        const quizAnswerContainer = document.getElementById('quiz-answer-container');
-        const quizAnswer = document.getElementById('quiz-answer');
-        const showAnswerBtn = document.getElementById('show-answer-btn');
-        const nextQuestionBtn = document.getElementById('next-question-btn');
-        const quizProgress = document.getElementById('quiz-progress');
-
         // --- STATE ---
         let currentIndex = 0;
-        let quizQuestions = [];
-        let currentQuizIndex = 0;
 
-        // --- GEMINI API ---
-        
+        // --- FUNCTIONS ---
+
         /**
-         * Generiert Schätzfragen mit der Gemini API.
+         * Creates and appends all task cards to the DOM in the correct order.
          */
-        async function generateQuizQuestions() {
-            loader.classList.remove('hidden');
-
-            const prompt = "Erstelle 5 lustige und knifflige Schätzfragen für einen Junggesellenabschied in Deutschland. Die Fragen sollten sich auf Allgemeinwissen, kuriose Fakten oder Deutschland beziehen. Gib die Antwort direkt mit an.";
-            
-            const payload = {
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "ARRAY",
-                        items: {
-                            type: "OBJECT",
-                            properties: {
-                                frage: { "type": "STRING" },
-                                antwort: { "type": "STRING" }
-                            },
-                            required: ["frage", "antwort"]
-                        }
-                    }
-                }
-            };
-
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API-Fehler: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0].text) {
-                    const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
-                    displayQuizModal(parsedJson);
-                } else {
-                     throw new Error("Unerwartete API-Antwortstruktur.");
-                }
-            } catch (error) {
-                console.error("Fehler beim Abrufen der Fragen:", error);
-                alert("Sorry, die KI ist gerade im Streik. Die Fragen konnten nicht geladen werden.");
-            } finally {
-                loader.classList.add('hidden');
-            }
-        }
-        
-        // --- QUIZ MODAL LOGIC ---
-        
-        function displayQuizModal(questions) {
-            quizQuestions = questions;
-            currentQuizIndex = 0;
-            loadQuizQuestion();
-            quizModal.classList.remove('hidden');
-        }
-
-        function loadQuizQuestion() {
-            quizAnswerContainer.classList.add('hidden');
-            showAnswerBtn.classList.remove('hidden');
-            
-            quizQuestion.textContent = quizQuestions[currentQuizIndex].frage;
-            quizAnswer.textContent = quizQuestions[currentQuizIndex].antwort;
-            quizProgress.textContent = `${currentQuizIndex + 1} / ${quizQuestions.length}`;
-        }
-
-        function closeQuizModal() {
-            quizModal.classList.add('hidden');
-        }
-
-        showAnswerBtn.addEventListener('click', () => {
-            quizAnswerContainer.classList.remove('hidden');
-            showAnswerBtn.classList.add('hidden');
-        });
-        
-        nextQuestionBtn.addEventListener('click', () => {
-            if (currentQuizIndex < quizQuestions.length - 1) {
-                currentQuizIndex++;
-                loadQuizQuestion();
-            } else {
-                alert("Das waren alle Fragen!");
-                closeQuizModal();
-            }
-        });
-
-
-        // --- CARD LOGIC ---
         function createCards() {
-            progressIndicator.textContent = `1 / ${tasks.length}`;
+            progressIndicator.textContent = `1 / ${tasks.length}`; 
             tasks.slice().reverse().forEach((task) => {
                 const card = document.createElement('div');
                 card.classList.add('card');
-                let cardContent = `
-                    <div class="relative w-full h-full flex flex-col justify-center items-center">
-                         <div class="absolute top-0 w-full h-12 flex justify-between items-center px-4">
-                            <div class="status-indicator nope">SHOTS!</div>
-                            <div class="status-indicator like">TOP!</div>
-                        </div>
-                        <div class="px-4">
-                            <h3 class="text-3xl font-bold text-gray-800 mb-4">${task.title}</h3>
-                            <p class="text-gray-700 leading-relaxed">${task.description}</p>
-                        </div>`;
-                
-                // Füge den KI-Button nur für die Schätzmeister-Karte hinzu
-                if (task.id === 'quiz') {
-                    cardContent += `<button onclick="event.stopPropagation(); generateQuizQuestions();" class="mt-6 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105 shadow-lg">✨ Fragen generieren</button>`;
-                }
+                // Updated card layout for better text flow
+                card.innerHTML = `
+                    <!-- Status indicators are absolutely positioned relative to the card, so they don't affect flow -->
+                    <div class="absolute top-12 left-0 right-0 flex justify-between px-10 pointer-events-none z-10">
+                        <div class="status-indicator nope">SHOTS!</div>
+                        <div class="status-indicator like">TOP!</div>
+                    </div>
 
-                cardContent += `
-                         <div class="absolute bottom-4 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
+                    <!-- Main text content area. It will grow and scroll if needed -->
+                    <div class="card-content w-full h-full overflow-y-auto pt-12">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">${task.title}</h3>
+                        <p class="text-gray-600 leading-relaxed">${task.description}</p>
+                    </div>
+
+                    <!-- The 'Strafe' section, which will be pushed to the bottom by justify-between -->
+                    <div class="flex-shrink-0 pt-4">
+                        <div class="bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">
                             STRAFE: ${task.shots} SHOTS
-                         </div>
-                    </div>`;
-                card.innerHTML = cardContent;
+                        </div>
+                    </div>
+                `;
                 cardStack.prepend(card); 
             });
             updateCardStackVisuals();
         }
         
+        /**
+         * Initializes event listeners for the current top card.
+         * @param {HTMLElement} card The card element to make interactive.
+         */
         function initCard(card) {
             if (!card) return;
 
@@ -355,7 +213,6 @@
             const likeIndicator = card.querySelector('.status-indicator.like');
 
             function onPointerDown(e) {
-                if (e.target.tagName === 'BUTTON') return;
                 isDragging = true;
                 startX = e.pageX ?? e.touches[0].pageX;
                 card.style.transition = 'none';
@@ -375,6 +232,7 @@
                     nopeIndicator.style.opacity = opacity;
                     likeIndicator.style.opacity = 0;
                 }
+
                 card.style.transform = `translateX(${diffX}px) rotate(${rotate}deg)`;
             }
 
@@ -404,6 +262,9 @@
             document.addEventListener('touchend', onPointerUp);
         }
 
+        /**
+         * Sets the visual styles (transform, z-index) for the card stack.
+         */
         function updateCardStackVisuals() {
             const currentCards = document.querySelectorAll('#card-stack .card');
             currentCards.forEach((card, index) => {
@@ -421,9 +282,14 @@
             });
         }
 
+
+        /**
+         * Handles logic for moving to the next card.
+         */
         function handleNextCard() {
             const swipedCard = document.querySelector('#card-stack .card');
             if (swipedCard) swipedCard.remove();
+
             currentIndex++;
             if (currentIndex < tasks.length) {
                 progressIndicator.textContent = `${currentIndex + 1} / ${tasks.length}`;
@@ -433,10 +299,14 @@
             }
         }
         
+        /**
+         * Hides the game and shows the final QR code screen.
+         */
         function showFinalScreen() {
             const finalUrl = "https://nerox1329.github.io/Ablaufplan/";
             const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(finalUrl)}`;
             qrCodeImage.src = qrApiUrl;
+            
             gameContainer.classList.add('hidden');
             finalScreen.classList.remove('hidden');
             finalScreen.classList.add('flex');
