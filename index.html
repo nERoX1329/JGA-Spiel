@@ -11,7 +11,7 @@
     <!-- QR Code Generation Library -->
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <style>
-        body {
+        html, body {
             font-family: 'Inter', sans-serif;
             background-color: #111827; /* bg-gray-900 */
             color: #F9FAFB; /* text-gray-100 */
@@ -19,7 +19,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            height: 100%;
+            width: 100%;
             margin: 0;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
@@ -31,6 +32,9 @@
             border-radius: 1rem;
             box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
             cursor: pointer;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
         /* Hidden div for QR code generation */
         #qrcode-container {
@@ -51,14 +55,34 @@
         // Adjust canvas size for high-DPI displays
         const dpr = window.devicePixelRatio || 1;
         
-        // Fixed canvas size for consistent layout
-        const canvasWidth = 500;
-        const canvasHeight = 800;
-        canvas.width = canvasWidth * dpr;
-        canvas.height = canvasHeight * dpr;
-        canvas.style.width = `${canvasWidth}px`;
-        canvas.style.height = `${canvasHeight}px`;
+        // --- THIS IS THE RESPONSIVE PART ---
+        // Internal resolution of the game
+        const baseWidth = 500;
+        const baseHeight = 800;
+        
+        canvas.width = baseWidth * dpr;
+        canvas.height = baseHeight * dpr;
         ctx.scale(dpr, dpr);
+
+        function resizeCanvas() {
+            const aspectRatio = baseWidth / baseHeight;
+            let newWidth = window.innerWidth;
+            let newHeight = window.innerHeight;
+            const windowAspectRatio = newWidth / newHeight;
+
+            if (windowAspectRatio > aspectRatio) {
+                newWidth = newHeight * aspectRatio;
+            } else {
+                newHeight = newWidth / aspectRatio;
+            }
+
+            canvas.style.width = `${newWidth}px`;
+            canvas.style.height = `${newHeight}px`;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        // --- END OF RESPONSIVE PART ---
+
 
         // --- CONFIGURATION ---
         const tasks = [
@@ -154,8 +178,11 @@
         
         function handleCanvasClick(event) {
             const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
+            // Scale click coordinates to match internal resolution
+            const scaleX = baseWidth / rect.width;
+            const scaleY = baseHeight / rect.height;
+            const x = (event.clientX - rect.left) * scaleX;
+            const y = (event.clientY - rect.top) * scaleY;
 
             for (const button of gameState.buttons) {
                 if (x > button.x && x < button.x + button.width && y > button.y && y < button.y + button.height) {
@@ -169,8 +196,8 @@
         // --- VIEW DRAWING FUNCTIONS ---
 
         function drawStartScreen() {
-            drawText('JGA', canvasWidth / 2, 250, 120, '900', '#F9FAFB');
-            drawText("Jan's Challenges", canvasWidth / 2, 360, 50, 'bold', '#34D399');
+            drawText('JGA', baseWidth / 2, 250, 120, '900', '#F9FAFB');
+            drawText("Jan's Challenges", baseWidth / 2, 360, 50, 'bold', '#34D399');
             
             gameState.buttons = [
                 createButton('SPIEL STARTEN', 100, 500, 300, 70, {bg: '#2563EB', text: '#FFF'}, () => {
@@ -182,24 +209,24 @@
 
         function drawHUD() {
             // Title
-            drawText('JGA Challenge', canvasWidth / 2, 80, 48, '900', '#F9FAFB'); 
+            drawText('JGA Challenge', baseWidth / 2, 80, 48, '900', '#F9FAFB'); 
             
             // Progress
             const progressText = `Aufgabe ${gameState.currentTaskIndex + 1} / ${tasks.length}`;
-            drawText(progressText, canvasWidth / 2, 130, 18, 'bold', '#34D399'); 
+            drawText(progressText, baseWidth / 2, 130, 18, 'bold', '#34D399'); 
 
             // Score Counters
-            drawText(gameState.challengesPassed, canvasWidth / 2 - 100, 190, 36, '900', '#34D399'); 
-            drawText('Bestanden', canvasWidth / 2 - 100, 220, 12, 'normal', '#9CA3AF'); 
+            drawText(gameState.challengesPassed, baseWidth / 2 - 100, 190, 36, '900', '#34D399'); 
+            drawText('Bestanden', baseWidth / 2 - 100, 220, 12, 'normal', '#9CA3AF'); 
 
-            drawText(gameState.shotsDrunk, canvasWidth / 2 + 100, 190, 36, '900', '#EF4444'); 
-            drawText('Shots getrunken', canvasWidth / 2 + 100, 220, 12, 'normal', '#9CA3AF'); 
+            drawText(gameState.shotsDrunk, baseWidth / 2 + 100, 190, 36, '900', '#EF4444'); 
+            drawText('Shots getrunken', baseWidth / 2 + 100, 220, 12, 'normal', '#9CA3AF'); 
         }
 
         function drawChallengeBox(task) {
-            drawRoundedRect(40, 260, canvasWidth - 80, 200, 16, '#1F2937'); 
-            drawText(task.title, canvasWidth / 2, 300, 24, 'bold', '#FFFFFF'); 
-            wrapText(task.description, canvasWidth / 2, 340, canvasWidth - 120, 28, 18, 'normal', '#D1D5DB'); 
+            drawRoundedRect(40, 260, baseWidth - 80, 200, 16, '#1F2937'); 
+            drawText(task.title, baseWidth / 2, 300, 24, 'bold', '#FFFFFF'); 
+            wrapText(task.description, baseWidth / 2, 340, baseWidth - 120, 28, 18, 'normal', '#D1D5DB'); 
         }
 
         function setInitialViewButtons() {
@@ -208,7 +235,7 @@
             const penaltyText = `${task.penalty} SHOT${task.penalty > 1 ? 'S' : ''}!`;
 
             gameState.buttons.push(createButton('CHALLENGE ACCEPTED', 60, 480, 380, 60, {bg: '#2563EB', text: '#FFF'}, handleAccept));
-            drawText('ODER', canvasWidth/2, 570, 20, 'bold', '#9CA3AF');
+            drawText('ODER', baseWidth/2, 570, 20, 'bold', '#9CA3AF');
             gameState.buttons.push(createButton(penaltyText, 60, 600, 380, 60, {bg: '#DC2626', text: '#FFF'}, handleFail));
         }
         
@@ -259,21 +286,21 @@
         function drawShotCounterView() {
             // Dim background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillRect(0, 0, baseWidth, baseHeight);
 
             // Modal
             const modalWidth = 350;
             const modalHeight = 200;
-            drawRoundedRect((canvasWidth - modalWidth) / 2, (canvasHeight - modalHeight) / 2, modalWidth, modalHeight, 16, '#EF4444');
+            drawRoundedRect((baseWidth - modalWidth) / 2, (baseHeight - modalHeight) / 2, modalWidth, modalHeight, 16, '#EF4444');
             
-            drawText('Tippe für jeden Shot!', canvasWidth/2, (canvasHeight/2) - 50, 18, 'normal', '#FFF');
+            drawText('Tippe für jeden Shot!', baseWidth/2, (baseHeight/2) - 50, 18, 'normal', '#FFF');
             const shotText = `Noch ${gameState.shotsRemaining} Shot${gameState.shotsRemaining > 1 ? 's' : ''}`;
-            drawText(shotText, canvasWidth/2, canvasHeight/2, 50, '900', '#FFF');
-            drawText('(Tippe zum Fortfahren)', canvasWidth/2, (canvasHeight/2) + 50, 14, 'normal', '#FFF');
+            drawText(shotText, baseWidth/2, baseHeight/2, 50, '900', '#FFF');
+            drawText('(Tippe zum Fortfahren)', baseWidth/2, (baseHeight/2) + 50, 14, 'normal', '#FFF');
             
             // The whole screen is a button here
             gameState.buttons = [{
-                x: 0, y: 0, width: canvasWidth, height: canvasHeight,
+                x: 0, y: 0, width: baseWidth, height: baseHeight,
                 onClick: () => {
                     if (gameState.shotsRemaining > 0) {
                         gameState.shotsRemaining--;
@@ -288,11 +315,11 @@
         }
 
         function drawFinalView() {
-            drawText('GESCHAFFT!', canvasWidth/2, 200, 60, '900', '#34D399');
-            drawText('Starke Leistung! Hier ist der Ablaufplan.', canvasWidth/2, 280, 20, 'normal', '#D1D5DB');
+            drawText('GESCHAFFT!', baseWidth/2, 200, 60, '900', '#34D399');
+            drawText('Starke Leistung! Hier ist der Ablaufplan.', baseWidth/2, 280, 20, 'normal', '#D1D5DB');
 
             const qrArea = {
-                x: canvasWidth / 2 - 135,
+                x: baseWidth / 2 - 135,
                 y: 340,
                 width: 270,
                 height: 270
@@ -376,8 +403,8 @@
             const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
             for (let i = 0; i < particleCount; i++) {
                 gameState.confettiParticles.push({
-                    x: canvasWidth / 2,
-                    y: canvasHeight,
+                    x: baseWidth / 2,
+                    y: baseHeight,
                     vx: (Math.random() - 0.5) * 20,
                     vy: Math.random() * -20 - 15,
                     size: Math.random() * 6 + 3,
@@ -419,7 +446,7 @@
         // --- MAIN RENDER LOOP ---
         function draw() {
             // Clear canvas
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.clearRect(0, 0, baseWidth, baseHeight);
 
             // Redraw the base view first before potential overlays
             switch(gameState.currentView) {
@@ -453,10 +480,10 @@
                     break;
                 case 'estimation':
                     const q = estimationQuestions[gameState.currentEstimationIndex];
-                    drawRoundedRect(40, 260, canvasWidth - 80, 280, 16, '#1F2937'); 
-                    wrapText(`Frage ${gameState.currentEstimationIndex + 1}: ${q.question}`, canvasWidth/2, 290, canvasWidth - 120, 28, 18, 'bold', '#FFF'); 
+                    drawRoundedRect(40, 260, baseWidth - 80, 280, 16, '#1F2937'); 
+                    wrapText(`Frage ${gameState.currentEstimationIndex + 1}: ${q.question}`, baseWidth/2, 290, baseWidth - 120, 28, 18, 'bold', '#FFF'); 
                     if (gameState.estimationAnswerVisible) {
-                        wrapText(q.answer, canvasWidth/2, 400, canvasWidth - 120, 28, 18, 'bold', '#34D399'); 
+                        wrapText(q.answer, baseWidth/2, 400, baseWidth - 120, 28, 18, 'bold', '#34D399'); 
                     }
                     setEstimationViewButtons();
                     gameState.buttons.forEach(drawButton);
@@ -490,6 +517,7 @@
         // --- INITIALIZATION ---
         window.onload = () => {
             console.log("Game Loaded. Starting render loop.");
+            resizeCanvas(); // Initial resize
             draw();
         };
     </script>
